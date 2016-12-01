@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import os
+os.environ["KERAS_BACKEND"] = "tensorflow"
 from skimage.transform import resize
 from skimage.color import rgb2gray
 import threading
