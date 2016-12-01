@@ -17,7 +17,8 @@ from atari_environment import AtariEnvironment
 
 # Path params
 EXPERIMENT_NAME = "breakout_a3c"
-SUMMARY_SAVE_PATH = "/Users/coreylynch/dev/async-rl/summaries/"+EXPERIMENT_NAME
+SUMMARY_SAVE_PATH = "/tmp/"+EXPERIMENT_NAME
+#SUMMARY_SAVE_PATH = "/Users/coreylynch/dev/async-rl/summaries/"+EXPERIMENT_NAME
 CHECKPOINT_SAVE_PATH = "/tmp/"+EXPERIMENT_NAME+".ckpt"
 CHECKPOINT_NAME = "/tmp/breakout_a3c.ckpt-5"
 CHECKPOINT_INTERVAL=5000
@@ -67,6 +68,7 @@ def actor_learner_thread(num, env, session, graph_ops, summary_ops, saver):
     global TMAX, T
 
     # Unpack graph ops
+    print 'num graph ops',len(graph_ops)
     s, a, R, minimize, p_network, v_network = graph_ops
 
     # Unpack tensorboard summary stuff
@@ -167,7 +169,7 @@ def build_graph():
     total_loss = p_loss + (0.5 * v_loss)
 
     minimize = optimizer.minimize(total_loss)
-    return s, a_t, R_t, minimize
+    return s, a_t, R_t, minimize, p_network, v_network
 
 # Set up some episode summary ops to visualize on tensorboard.
 def setup_summaries():
@@ -193,10 +195,9 @@ def train(session, graph_ops, saver):
     session.run(tf.initialize_all_variables())
     writer = tf.train.SummaryWriter(SUMMARY_SAVE_PATH, session.graph)
 
-    # Start NUM_CONCURRENT training threads
-    actor_learner_threads = [threading.Thread(target=actor_learner_thread, args=(thread_id, envs[thread_id], session, graph_ops, summary_ops, saver)) for thread_id in range(NUM_CONCURRENT)]
-    for t in actor_learner_threads:
-        t.start()
+    # Single thread mode ...
+    thread_id = 0
+    actor_learner_thread(thread_id, envs[thread_id], session, graph_ops, summary_ops, saver)
 
     # Show the agents training and write summary statistics
     last_summary_time = 0
@@ -209,8 +210,6 @@ def train(session, graph_ops, saver):
             summary_str = session.run(summary_op)
             writer.add_summary(summary_str, float(T))
             last_summary_time = now
-    for t in actor_learner_threads:
-        t.join()
 
 def evaluation(session, graph_ops, saver):
     saver.restore(session, CHECKPOINT_NAME)
